@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
+  <title>Formulário</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+    
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    label, input {
+      margin-bottom: 10px;
+    }
+    
+    input[type="submit"] {
+      margin-top: 20px;
+    }
+    
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <form id="myForm">
+    <label for="matricula">Matrícula:</label>
+    <input type="text" id="matricula" name="matricula" required>
+  
+    <label for="nome">Nome:</label>
+    <input type="text" id="nome" name="nome" required>
+  
+    <label for="dataInicial">Data Inicial:</label>
+    <input type="date" id="dataInicial" name="dataInicial" required>
+  
+    <label for="dataFinal">Data Final:</label>
+    <input type="date" id="dataFinal" name="dataFinal" required>
+  
+    <div class="buttons">
+      <input type="submit" value="Cadastrar">
+      <input type="button" value="Cancelar" id="cancelButton">
+    </div>
+  </form>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    document.getElementById('myForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const formData = new FormData(event.target);
+      const data = {};
+
+      for (let [key, value] of formData.entries()) {
+        data[key] = value;
+      }
+
+      ipcRenderer.send('form-submission', data);
+    });
+
+    document.getElementById('cancelButton').addEventListener('click', () => {
+      ipcRenderer.send('cancel-clicked');
+    });
+  </script>
+</body>
+</html>
