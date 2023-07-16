@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const fs = require("fs");
 const path = require('path');
 
 function createWindow() {
@@ -21,7 +22,20 @@ app.whenReady().then(createWindow);
 ipcMain.on('form-submission', (event, formData) => {
   const generatedData = generateRecordsForDateRange(formData);
   console.log(generatedData);
-  // Aqui você pode lidar com os registros gerados para cada dia útil.
+
+  const savePath = dialog.showSaveDialogSync({
+    title: 'Salvar arquivo',
+    defaultPath: 'registros.csv',
+    filters: [
+      { name: 'Arquivos CSV', extensions: ['csv'] }
+    ]
+  });
+
+  if (savePath) {
+    const csvData = generateCsvData(formData, generatedData);
+
+    fs.writeFileSync(savePath, csvData);
+  }
 });
 
 ipcMain.on('cancel-clicked', () => {
@@ -36,13 +50,14 @@ function generateRecordsForDateRange(formData) {
 
   const currentDate = new Date(startDate);
   while (currentDate <= endDate) {
-    if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+    if (currentDate.getDay() !== 5 && currentDate.getDay() !== 6) {
       const formattedDate = currentDate.toISOString().split('T')[0];
-      const generatedData = generateRandomTimeForForm({
+      const generatedData = {
         matricula,
         nome,
-        data: formattedDate
-      });
+        data: formattedDate,
+        ...generateRandomTimeForForm()
+      };
       generatedRecords.push(generatedData);
     }
 
@@ -52,13 +67,24 @@ function generateRecordsForDateRange(formData) {
   return generatedRecords;
 }
 
-function generateRandomTimeForForm(formData) {
-  const generatedData = { ...formData };
+function generateRandomTimeForForm() {
+  const generatedData = {};
 
   generatedData.horaEntrada = generateRandomTime('06:55', '07:00');
   generatedData.horaRefeicaoInicio = generateRandomTime('11:30', '11:35');
   generatedData.horaRefeicaoFim = generateRandomTime('13:00', '13:05');
   generatedData.horaSaida = generateRandomTime('17:00', '17:05');
+
+  return generatedData;
+}
+
+function generateRandomTimeForFormSabado() {
+  const generatedData = {};
+
+  generatedData.horaEntrada = generateRandomTime('06:55', '07:00');
+  generatedData.horaRefeicaoInicio = generateRandomTime('11:30', '11:35');
+  generatedData.horaRefeicaoFim = generateRandomTime('12:00', '12:05');
+  generatedData.horaSaida = generateRandomTime('13:00', '13:05');
 
   return generatedData;
 }
@@ -86,4 +112,16 @@ function generateRandomTime(startTime, endTime) {
 
 function padZero(value) {
   return String(value).padStart(2, '0');
+}
+
+function generateCsvData(formData, generatedRecords) {
+  const { nome, matricula } = formData;
+  let csvData = `Nome: ${nome},Matrícula: ${matricula} \nData,Hora Entrada,Hora Refeição Início,Hora Refeição Fim,Hora Saída\n`;
+
+  for (const record of generatedRecords) {
+    const { data, horaEntrada, horaRefeicaoInicio, horaRefeicaoFim, horaSaida } = record;
+    csvData += `${data},${horaEntrada},${horaRefeicaoInicio},${horaRefeicaoFim},${horaSaida}\n`;
+  }
+
+  return csvData;
 }
