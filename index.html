@@ -10,31 +10,64 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f2f2f2;
     }
     
     form {
-      display: flex;
-      flex-direction: column;
+      width: 400px;
+      padding: 40px;
+      background-color: #fff;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
     }
     
-    label, input {
-      margin-bottom: 10px;
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #333;
     }
     
-    input[type="submit"] {
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #555;
+    }
+    
+    input[type="text"],
+    input[type="date"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    input[type="submit"],
+    input[type="button"] {
+      display: block;
+      width: 100%;
+      padding: 10px;
       margin-top: 20px;
+      background-color: #4caf50;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
     }
     
-    .buttons {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 20px;
+    input[type="submit"]:hover,
+    input[type="button"]:hover {
+      background-color: #45a049;
     }
   </style>
 </head>
 <body>
   <form id="myForm">
+    <h1>Gerador Folha de Ponto</h1>
     <label for="matricula">Matrícula:</label>
     <input type="text" id="matricula" name="matricula" required>
   
@@ -47,10 +80,8 @@
     <label for="dataFinal">Data Final:</label>
     <input type="date" id="dataFinal" name="dataFinal" required>
   
-    <div class="buttons">
-      <input type="submit" value="Cadastrar">
-      <input type="button" value="Cancelar" id="cancelButton">
-    </div>
+    <input type="submit" value="Gerar Folha de Ponto">
+    <input type="button" value="Limpar" id="cancelButton">
   </form>
 
   <script>
@@ -70,7 +101,10 @@
     });
 
     document.getElementById('cancelButton').addEventListener('click', () => {
-      ipcRenderer.send('cancel-clicked');
+      document.getElementById('matricula').value = '';
+      document.getElementById('nome').value = '';
+      document.getElementById('dataInicial').value = '';
+      document.getElementById('dataFinal').value = '';
     });
   </script>
 </body>

@@ -4,8 +4,8 @@ const path = require('path');
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 600,
+    height: 700,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -32,25 +32,31 @@ ipcMain.on('form-submission', (event, formData) => {
   });
 
   if (savePath) {
-    const csvData = generateCsvData(formData, generatedData);
+    const csvData = generateCsvData(generatedData);
 
     fs.writeFileSync(savePath, csvData);
   }
 });
 
-ipcMain.on('cancel-clicked', () => {
-  app.quit();
-});
-
 function generateRecordsForDateRange(formData) {
   const { matricula, nome, dataInicial, dataFinal } = formData;
-  const startDate = new Date(dataInicial);
-  const endDate = new Date(dataFinal);
+  const startDate = new Date(dataInicial + "T09:00:00");
+  const endDate = new Date(dataFinal + "T09:00:00");
   const generatedRecords = [];
 
   const currentDate = new Date(startDate);
   while (currentDate <= endDate) {
-    if (currentDate.getDay() !== 5 && currentDate.getDay() !== 6) {
+    if (currentDate.getDay() === 6) {
+      const formattedDate = currentDate.toISOString().split('T')[0];
+      const generatedData = {
+        matricula,
+        nome,
+        data: formattedDate,
+        ...generateRandomTimeForFormSabado()
+      };
+      generatedRecords.push(generatedData);
+    }
+    if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
       const formattedDate = currentDate.toISOString().split('T')[0];
       const generatedData = {
         matricula,
@@ -114,8 +120,8 @@ function padZero(value) {
   return String(value).padStart(2, '0');
 }
 
-function generateCsvData(formData, generatedRecords) {
-  const { nome, matricula } = formData;
+function generateCsvData(generatedRecords) {
+  const { nome, matricula } = generatedRecords[0];
   let csvData = `Nome: ${nome},Matrícula: ${matricula} \nData,Hora Entrada,Hora Refeição Início,Hora Refeição Fim,Hora Saída\n`;
 
   for (const record of generatedRecords) {
