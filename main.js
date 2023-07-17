@@ -19,11 +19,11 @@ function createWindow() {
 
 app.whenReady().then(createWindow);
 
-ipcMain.on('form-submission', (event, formData) => {
-  const generatedData = generateRecordsForDateRange(formData);
-  console.log(generatedData);
+ipcMain.on('form-submission', (event, dadosFormulario) => {
+  const dadosGerados = geraDadosPorPeriodoData(dadosFormulario);
+  console.log(dadosGerados);
 
-  const savePath = dialog.showSaveDialogSync({
+  const caminhoArquivo = dialog.showSaveDialogSync({
     title: 'Salvar arquivo',
     defaultPath: 'registros.csv',
     filters: [
@@ -31,103 +31,103 @@ ipcMain.on('form-submission', (event, formData) => {
     ]
   });
 
-  if (savePath) {
-    const csvData = generateCsvData(generatedData);
+  if (caminhoArquivo) {
+    const csvDados = gerarCsvDados(dadosGerados);
 
-    fs.writeFileSync(savePath, csvData);
+    fs.writeFileSync(caminhoArquivo, csvDados);
   }
 });
 
-function generateRecordsForDateRange(formData) {
-  const { matricula, nome, dataInicial, dataFinal } = formData;
-  const startDate = new Date(dataInicial + "T09:00:00");
-  const endDate = new Date(dataFinal + "T09:00:00");
-  const generatedRecords = [];
+function geraDadosPorPeriodoData(dadosFormulario) {
+  const { matricula, nome, dataInicial, dataFinal } = dadosFormulario;
+  const inicioData = new Date(dataInicial + "T09:00:00");
+  const finalData = new Date(dataFinal + "T09:00:00");
+  const registrosGerados = [];
 
-  const currentDate = new Date(startDate);
-  while (currentDate <= endDate) {
-    if (currentDate.getDay() === 6) {
-      const formattedDate = currentDate.toISOString().split('T')[0];
-      const generatedData = {
+  const dataCorrente = new Date(inicioData);
+  while (dataCorrente <= finalData) {
+    if (dataCorrente.getDay() === 6) {
+      const dataFormatada = dataCorrente.toISOString().split('T')[0];
+      const dadosGerados = {
         matricula,
         nome,
-        data: formattedDate,
-        ...generateRandomTimeForFormSabado()
+        data: dataFormatada,
+        ...geraHorarioSabado()
       };
-      generatedRecords.push(generatedData);
+      registrosGerados.push(dadosGerados);
     }
-    if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
-      const formattedDate = currentDate.toISOString().split('T')[0];
-      const generatedData = {
+    if (dataCorrente.getDay() !== 0 && dataCorrente.getDay() !== 6) {
+      const dataFormatada = dataCorrente.toISOString().split('T')[0];
+      const dadosGerados = {
         matricula,
         nome,
-        data: formattedDate,
-        ...generateRandomTimeForForm()
+        data: dataFormatada,
+        ...geraHoarioSegundaSexta()
       };
-      generatedRecords.push(generatedData);
+      registrosGerados.push(dadosGerados);
     }
 
-    currentDate.setDate(currentDate.getDate() + 1);
+    dataCorrente.setDate(dataCorrente.getDate() + 1);
   }
 
-  return generatedRecords;
+  return registrosGerados;
 }
 
-function generateRandomTimeForForm() {
-  const generatedData = {};
+function geraHoarioSegundaSexta() {
+  const dadosGerados = {};
 
-  generatedData.horaEntrada = generateRandomTime('06:55', '07:00');
-  generatedData.horaRefeicaoInicio = generateRandomTime('11:30', '11:35');
-  generatedData.horaRefeicaoFim = generateRandomTime('13:00', '13:05');
-  generatedData.horaSaida = generateRandomTime('17:00', '17:05');
+  dadosGerados.horaEntrada = geraHorarioRandomico('06:55', '07:00');
+  dadosGerados.horaRefeicaoInicio = geraHorarioRandomico('11:30', '11:35');
+  dadosGerados.horaRefeicaoFim = geraHorarioRandomico('13:00', '13:05');
+  dadosGerados.horaSaida = geraHorarioRandomico('17:00', '17:05');
 
-  return generatedData;
+  return dadosGerados;
 }
 
-function generateRandomTimeForFormSabado() {
-  const generatedData = {};
+function geraHorarioSabado() {
+  const dadosGerados = {};
 
-  generatedData.horaEntrada = generateRandomTime('06:55', '07:00');
-  generatedData.horaRefeicaoInicio = generateRandomTime('11:30', '11:35');
-  generatedData.horaRefeicaoFim = generateRandomTime('12:00', '12:05');
-  generatedData.horaSaida = generateRandomTime('13:00', '13:05');
+  dadosGerados.horaEntrada = geraHorarioRandomico('06:55', '07:00');
+  dadosGerados.horaRefeicaoInicio = geraHorarioRandomico('11:30', '11:35');
+  dadosGerados.horaRefeicaoFim = geraHorarioRandomico('12:00', '12:05');
+  dadosGerados.horaSaida = geraHorarioRandomico('13:00', '13:05');
 
-  return generatedData;
+  return dadosGerados;
 }
 
-function generateRandomTime(startTime, endTime) {
-  const [startHour, startMinute] = startTime.split(':');
-  const [endHour, endMinute] = endTime.split(':');
+function geraHorarioRandomico(horaInicio, horaFim) {
+  const [horaInicial, minutoInicial] = horaInicio.split(':');
+  const [horaFinal, minutoFinal] = horaFim.split(':');
 
-  const startTimestamp = new Date();
-  startTimestamp.setHours(startHour, startMinute, 0);
+  const horaInicioTimestamp = new Date();
+  horaInicioTimestamp.setHours(horaInicial, minutoInicial, 0);
 
-  const endTimestamp = new Date();
-  endTimestamp.setHours(endHour, endMinute, 0);
+  const horaFinalTimestamp = new Date();
+  horaFinalTimestamp.setHours(horaFinal, minutoFinal, 0);
 
-  const randomTimestamp = new Date(
-    startTimestamp.getTime() + Math.random() * (endTimestamp.getTime() - startTimestamp.getTime())
+  const horaRandomicaTimestamp = new Date(
+    horaInicioTimestamp.getTime() + Math.random() * (horaFinalTimestamp.getTime() - horaInicioTimestamp.getTime())
   );
 
-  const hours = randomTimestamp.getHours();
-  const minutes = randomTimestamp.getMinutes();
-  const seconds = randomTimestamp.getSeconds();
+  const horas = horaRandomicaTimestamp.getHours();
+  const minutos = horaRandomicaTimestamp.getMinutes();
+  const segundos = horaRandomicaTimestamp.getSeconds();
 
-  return `${padZero(hours)}:${padZero(minutes)}:${padZero(seconds)}`;
+  return `${padZero(horas)}:${padZero(minutos)}:${padZero(segundos)}`;
 }
 
-function padZero(value) {
-  return String(value).padStart(2, '0');
+function padZero(valor) {
+  return String(valor).padStart(2, '0');
 }
 
-function generateCsvData(generatedRecords) {
-  const { nome, matricula } = generatedRecords[0];
-  let csvData = `Nome: ${nome},Matrícula: ${matricula} \nData,Hora Entrada,Hora Refeição Início,Hora Refeição Fim,Hora Saída\n`;
+function gerarCsvDados(dadosGerados) {
+  const { nome, matricula } = dadosGerados[0];
+  let dadosCsv = `Nome: ${nome},Matrícula: ${matricula} \nData,Hora Entrada,Hora Refeição Início,Hora Refeição Fim,Hora Saída\n`;
 
-  for (const record of generatedRecords) {
-    const { data, horaEntrada, horaRefeicaoInicio, horaRefeicaoFim, horaSaida } = record;
-    csvData += `${data},${horaEntrada},${horaRefeicaoInicio},${horaRefeicaoFim},${horaSaida}\n`;
+  for (const dados of dadosGerados) {
+    const { data, horaEntrada, horaRefeicaoInicio, horaRefeicaoFim, horaSaida } = dados;
+    dadosCsv += `${data},${horaEntrada},${horaRefeicaoInicio},${horaRefeicaoFim},${horaSaida}\n`;
   }
 
-  return csvData;
+  return dadosCsv;
 }
