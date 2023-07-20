@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciamento de Funcionários</title>
+  <style>
+    body {
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+input[type="text"] {
+  padding: 5px;
+}
+
+button {
+  padding: 5px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin-top: 20px;
+}
+
+li {
+  padding: 5px;
+  border: 1px solid #ccc;
+  margin-bottom: 5px;
+}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Gerenciamento de Funcionários</h1>
+    <form id="employeeForm">
+      <input type="text" id="matricula" placeholder="Matrícula">
+      <input type="text" id="nome" placeholder="Nome">
+      <button type="submit">Cadastrar</button>
+    </form>
+    <ul id="employeeList">
+      <!-- Aqui os funcionários cadastrados serão exibidos -->
+    </ul>
+  </div>
+  <script>
+
+        const { ipcRenderer } = require('electron');
+
+        const employeeForm = document.getElementById('employeeForm');
+        const matriculaInput = document.getElementById('matricula');
+        const nomeInput = document.getElementById('nome');
+        const employeeList = document.getElementById('employeeList');
+
+        // let employees = [];
+
+    async function renderEmployees() {
+        const listaFuncionarios = await ipcRenderer.invoke('buscarFuncionarios');
+        employeeList.innerHTML = listaFuncionarios
+            .map(
+            (employee, index) => `
+                <li>
+                ${employee.matricula} - ${employee.nome}
+                <button class="editButton" data-index="${index}">Editar</button>
+                <button class="deleteButton" data-index="${index}">Excluir</button>
+                </li>
+            `
+            )
+            .join('');
+
+        const editButtons = document.querySelectorAll('.editButton');
+        const deleteButtons = document.querySelectorAll('.deleteButton');
+
+        editButtons.forEach((button) =>
+            button.addEventListener('click', handleEditEmployee)
+        );
+
+        deleteButtons.forEach((button) =>
+            button.addEventListener('click', handleDeleteEmployee)
+        );
+        }
+
+    function addEmployee(event) {
+        event.preventDefault();
+
+        const matricula = matriculaInput.value;
+        const nome = nomeInput.value;
+
+        if (matricula.trim() === '' || nome.trim() === '') {
+            return;
+        }
+
+        // employees.push({ matricula, nome });
+        ipcRenderer.send('cadastro-funcionario', { matricula, nome })
+        renderEmployees();
+        employeeForm.reset();
+
+    }
+
+    function handleEditEmployee(event) {
+        const index = event.target.dataset.index;
+        const employee = employees[index];
+
+        const editDialog = document.createElement('div');
+        editDialog.innerHTML = `
+            <h3>Editar Funcionário</h3>
+            <input type="text" id="editMatricula" value="${employee.matricula}" placeholder="Matrícula">
+            <input type="text" id="editNome" value="${employee.nome}" placeholder="Nome">
+            <button id="saveButton">Salvar</button>
+            <button id="cancelButton">Cancelar</button>
+        `;
+
+        const saveButton = editDialog.querySelector('#saveButton');
+        const cancelButton = editDialog.querySelector('#cancelButton');
+        const editMatriculaInput = editDialog.querySelector('#editMatricula');
+        const editNomeInput = editDialog.querySelector('#editNome');
+
+    saveButton.addEventListener('click', () => {
+        const newMatricula = editMatriculaInput.value;
+        const newNome = editNomeInput.value;
+
+        if (newMatricula.trim() !== '' && newNome.trim() !== '') {
+          employees[index].matricula = newMatricula;
+          employees[index].nome = newNome;
+          ipcRenderer.send('editar-funcionario', {newMatricula, newNome})
+          renderEmployees();
+          editDialog.remove();
+        } else {
+        alert('Os campos não podem estar em branco.');
+        }
+    });
+
+    cancelButton.addEventListener('click', () => {
+        editDialog.remove();
+    });
+
+    document.body.appendChild(editDialog);
+}
+
+
+    let deleteDialog = null; // Variável para armazenar o diálogo de confirmação da exclusão
+
+    function openDeleteDialog(index) {
+        const employee = employees[index];
+
+        deleteDialog = document.createElement('div');
+        deleteDialog.innerHTML = `
+            <h3>Excluir Funcionário</h3>
+            <p>Você tem certeza que deseja excluir o funcionário:</p>
+            <p><strong>${employee.matricula} - ${employee.nome}</strong></p>
+            <button id="confirmDeleteButton">Confirmar</button>
+            <button id="cancelDeleteButton">Cancelar</button>
+        `;
+
+        const confirmDeleteButton = deleteDialog.querySelector('#confirmDeleteButton');
+        const cancelDeleteButton = deleteDialog.querySelector('#cancelDeleteButton');
+
+        confirmDeleteButton.addEventListener('click', () => {
+            employees.splice(index, 1);
+            renderEmployees();
+            deleteDialog.remove();
+            enableForm(); // Habilitar o formulário principal após excluir
+        });
+
+        cancelDeleteButton.addEventListener('click', () => {
+            deleteDialog.remove();
+            enableForm(); // Habilitar o formulário principal após cancelar a exclusão
+        });
+
+        document.body.appendChild(deleteDialog);
+        disableForm(); // Desabilitar o formulário principal ao abrir o diálogo de exclusão
+}
+
+    function handleDeleteEmployee(event) {
+        const index = event.target.dataset.index;
+        openDeleteDialog(index);
+}
+
+
+    employeeForm.addEventListener('submit', addEmployee);
+
+  </script>
+</body>
+</html>

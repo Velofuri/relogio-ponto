@@ -1,8 +1,9 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-const fs = require("fs");
+const fs = require('fs');
 const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
 
-function createWindow() {
+function janelaCadatraFuncionario() {
   const win = new BrowserWindow({
     width: 600,
     height: 700,
@@ -10,14 +11,77 @@ function createWindow() {
       nodeIntegration: true,
       contextIsolation: false,
       enableRemoteModule: true,
-      preload: path.join(__dirname, 'preload.js')
-    }
+    },
+  });
+
+  win.loadFile('cadastro-funcionario.html');
+}
+
+function janelaGeraPonto() {
+  const win = new BrowserWindow({
+    width: 600,
+    height: 700,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      enableRemoteModule: true,
+    },
   });
 
   win.loadFile('index.html');
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(janelaCadatraFuncionario).then(createDatabase());
+
+function buscaFuncionarios() {
+  const db = createDatabase();
+  const query = `SELECT * FROM funcionarios`;
+
+  return new Promise((resolve, reject) => {
+    db.all(query, [], (error, rows) => {
+      if (error) {
+        console.error('erro na consulta', error.message);
+        reject(error);
+      } else {
+        console.log(rows);
+        resolve(rows);
+      }
+    });
+  });
+}
+
+ipcMain.handle('buscarFuncionarios', async (event, args) => {
+  try {
+    const listaFuncionarios = await buscaFuncionarios();
+    return listaFuncionarios;
+  } catch (error) {
+    return [];
+  }
+});
+
+ipcMain.on('cadastro-funcionario', (event, dadosFuncionario) => {
+  console.log(dadosFuncionario);
+  const query = `INSERT INTO funcionarios (matricula, nome) VALUES (?, ?)`;
+  db.run(query, [dadosFuncionario.matricula, dadosFuncionario.nome], (error) => {
+    if (error) {
+      console.error(error);
+    }
+  });
+});
+
+ipcMain.on('editar-funcionario', (event, dadosFuncionario) => {
+  console.log(dadosFuncionario);
+  const query = `UPDATE funcionarios SET matricula = ?, nome = ? WHERE id = ?`;
+  db.run(
+    query,
+    [dadosFuncionario.matricula, dadosFuncionario.nome, dadosFuncionario.id],
+    (error) => {
+      if (error) {
+        console.error(error);
+      }
+    }
+  );
+});
 
 ipcMain.on('form-submission', (event, dadosFormulario) => {
   const dadosGerados = geraDadosPorPeriodoData(dadosFormulario);
@@ -26,9 +90,7 @@ ipcMain.on('form-submission', (event, dadosFormulario) => {
   const caminhoArquivo = dialog.showSaveDialogSync({
     title: 'Salvar arquivo',
     defaultPath: 'registros.csv',
-    filters: [
-      { name: 'Arquivos CSV', extensions: ['csv'] }
-    ]
+    filters: [{ name: 'Arquivos CSV', extensions: ['csv'] }],
   });
 
   if (caminhoArquivo) {
@@ -40,8 +102,8 @@ ipcMain.on('form-submission', (event, dadosFormulario) => {
 
 function geraDadosPorPeriodoData(dadosFormulario) {
   const { matricula, nome, dataInicial, dataFinal } = dadosFormulario;
-  const inicioData = new Date(dataInicial + "T09:00:00");
-  const finalData = new Date(dataFinal + "T09:00:00");
+  const inicioData = new Date(dataInicial + 'T09:00:00');
+  const finalData = new Date(dataFinal + 'T09:00:00');
   const registrosGerados = [];
 
   const dataCorrente = new Date(inicioData);
@@ -52,7 +114,7 @@ function geraDadosPorPeriodoData(dadosFormulario) {
         matricula,
         nome,
         data: dataFormatada,
-        ...geraHorarioSabado()
+        ...geraHorarioSabado(),
       };
       registrosGerados.push(dadosGerados);
     }
@@ -62,7 +124,7 @@ function geraDadosPorPeriodoData(dadosFormulario) {
         matricula,
         nome,
         data: dataFormatada,
-        ...geraHoarioSegundaSexta()
+        ...geraHorarioSegundaSexta(),
       };
       registrosGerados.push(dadosGerados);
     }
@@ -73,7 +135,7 @@ function geraDadosPorPeriodoData(dadosFormulario) {
   return registrosGerados;
 }
 
-function geraHoarioSegundaSexta() {
+function geraHorarioSegundaSexta() {
   const dadosGerados = {};
 
   dadosGerados.horaEntrada = geraHorarioRandomico('06:55', '07:00');
@@ -106,7 +168,8 @@ function geraHorarioRandomico(horaInicio, horaFim) {
   horaFinalTimestamp.setHours(horaFinal, minutoFinal, 0);
 
   const horaRandomicaTimestamp = new Date(
-    horaInicioTimestamp.getTime() + Math.random() * (horaFinalTimestamp.getTime() - horaInicioTimestamp.getTime())
+    horaInicioTimestamp.getTime() +
+      Math.random() * (horaFinalTimestamp.getTime() - horaInicioTimestamp.getTime())
   );
 
   const horas = horaRandomicaTimestamp.getHours();
@@ -130,4 +193,32 @@ function gerarCsvDados(dadosGerados) {
   }
 
   return dadosCsv;
+}
+
+function createDatabase() {
+  db = new sqlite3.Database('./database.db', (err) => {
+    if (err) {
+      console.error('Erro ao abrir o banco de dados', err.message);
+    } else {
+      console.log('Conexao com o banco de dados estabelecida.');
+      createTable(db);
+    }
+  });
+  return db;
+}
+
+function createTable(db) {
+  const query = `
+    CREATE TABLE IF NOT EXISTS funcionarios (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      matricula TEXT,
+      nome TEXT
+    )
+  `;
+
+  db.run(query, (err) => {
+    if (err) {
+      console.error('Erro ao criar a tabela', err.message);
+    }
+  });
 }
