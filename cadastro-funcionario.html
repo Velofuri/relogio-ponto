@@ -53,6 +53,7 @@ li {
       <input type="text" id="matricula" placeholder="Matrícula">
       <input type="text" id="nome" placeholder="Nome">
       <button type="submit">Cadastrar</button>
+      <button id="listaFuncionariosBotao" type="button">Funcionarios Cadastrados</button>
     </form>
     <ul id="employeeList">
       <!-- Aqui os funcionários cadastrados serão exibidos -->
@@ -67,11 +68,28 @@ li {
         const nomeInput = document.getElementById('nome');
         const employeeList = document.getElementById('employeeList');
 
-        // let employees = [];
+        let employees;
 
-    async function renderEmployees() {
-        const listaFuncionarios = await ipcRenderer.invoke('buscarFuncionarios');
-        employeeList.innerHTML = listaFuncionarios
+        async function fetchEmployees() {
+          try {
+            employees = await ipcRenderer.invoke('buscarFuncionarios');
+
+          } catch (error) {
+            console.error('Erro ao buscar funcionários:', error);
+            // Lide com o erro, se necessário
+          }
+        }
+
+        // Chame a função fetchEmployees para buscar e armazenar os funcionários
+        fetchEmployees();
+
+        
+        async function renderEmployees() {
+          const listaFuncionarios = await ipcRenderer.invoke('buscarFuncionarios');
+          // employees = await ipcRenderer.invoke('buscarFuncionarios');
+          // console.log(employees)
+          fetchEmployees()
+          employeeList.innerHTML = listaFuncionarios
             .map(
             (employee, index) => `
                 <li>
@@ -133,11 +151,12 @@ li {
     saveButton.addEventListener('click', () => {
         const newMatricula = editMatriculaInput.value;
         const newNome = editNomeInput.value;
+        const id = employee.id
 
         if (newMatricula.trim() !== '' && newNome.trim() !== '') {
-          employees[index].matricula = newMatricula;
-          employees[index].nome = newNome;
-          ipcRenderer.send('editar-funcionario', {newMatricula, newNome})
+          // employees[index].matricula = newMatricula;
+          // employees[index].nome = newNome;
+          ipcRenderer.send('editar-funcionario', { newMatricula, newNome, id })
           renderEmployees();
           editDialog.remove();
         } else {
@@ -157,6 +176,8 @@ li {
 
     function openDeleteDialog(index) {
         const employee = employees[index];
+        const id = employee.id
+        console.log(id)
 
         deleteDialog = document.createElement('div');
         deleteDialog.innerHTML = `
@@ -171,7 +192,7 @@ li {
         const cancelDeleteButton = deleteDialog.querySelector('#cancelDeleteButton');
 
         confirmDeleteButton.addEventListener('click', () => {
-            employees.splice(index, 1);
+            ipcRenderer.send('excluir-funcionario', id)
             renderEmployees();
             deleteDialog.remove();
             enableForm(); // Habilitar o formulário principal após excluir
@@ -191,6 +212,11 @@ li {
         openDeleteDialog(index);
 }
 
+    const botaoListaFuncionarios = document.getElementById('listaFuncionariosBotao')
+
+    botaoListaFuncionarios.addEventListener('click', () => {
+      renderEmployees();
+    })
 
     employeeForm.addEventListener('submit', addEmployee);
 

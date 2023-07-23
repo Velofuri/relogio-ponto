@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, ipcRenderer } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
@@ -13,8 +13,10 @@ function janelaCadatraFuncionario() {
       enableRemoteModule: true,
     },
   });
+  
 
   win.loadFile('cadastro-funcionario.html');
+
 }
 
 function janelaGeraPonto() {
@@ -34,7 +36,7 @@ function janelaGeraPonto() {
 app.whenReady().then(janelaCadatraFuncionario).then(createDatabase());
 
 function buscaFuncionarios() {
-  const db = createDatabase();
+  // const db = createDatabase();
   const query = `SELECT * FROM funcionarios`;
 
   return new Promise((resolve, reject) => {
@@ -43,7 +45,7 @@ function buscaFuncionarios() {
         console.error('erro na consulta', error.message);
         reject(error);
       } else {
-        console.log(rows);
+        // console.log(rows);
         resolve(rows);
       }
     });
@@ -60,7 +62,7 @@ ipcMain.handle('buscarFuncionarios', async (event, args) => {
 });
 
 ipcMain.on('cadastro-funcionario', (event, dadosFuncionario) => {
-  console.log(dadosFuncionario);
+  // console.log(dadosFuncionario);
   const query = `INSERT INTO funcionarios (matricula, nome) VALUES (?, ?)`;
   db.run(query, [dadosFuncionario.matricula, dadosFuncionario.nome], (error) => {
     if (error) {
@@ -69,12 +71,11 @@ ipcMain.on('cadastro-funcionario', (event, dadosFuncionario) => {
   });
 });
 
-ipcMain.on('editar-funcionario', (event, dadosFuncionario) => {
-  console.log(dadosFuncionario);
+ipcMain.on('editar-funcionario', (event, novoDadosFuncionario) => {
   const query = `UPDATE funcionarios SET matricula = ?, nome = ? WHERE id = ?`;
   db.run(
     query,
-    [dadosFuncionario.matricula, dadosFuncionario.nome, dadosFuncionario.id],
+    [novoDadosFuncionario.newMatricula, novoDadosFuncionario.newNome, novoDadosFuncionario.id],
     (error) => {
       if (error) {
         console.error(error);
@@ -83,9 +84,18 @@ ipcMain.on('editar-funcionario', (event, dadosFuncionario) => {
   );
 });
 
+ipcMain.on('excluir-funcionario', (event, id) => {
+  const query = `DELETE FROM funcionarios WHERE id = ?`
+  db.run(query, [id], (error) => {
+    if (error) {
+      console.error(error)
+    }
+  })
+})
+
 ipcMain.on('form-submission', (event, dadosFormulario) => {
   const dadosGerados = geraDadosPorPeriodoData(dadosFormulario);
-  console.log(dadosGerados);
+  // console.log(dadosGerados);
 
   const caminhoArquivo = dialog.showSaveDialogSync({
     title: 'Salvar arquivo',
