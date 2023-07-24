@@ -52,5 +52,18 @@ function consultaDb() {
   })
 }
 
-testeDB();
-consultaDb();
+function consultaNovaTabela() {
+  const db = createDatabase()
+  db.all(`SELECT * FROM registros_ponto`, [], (err, rows) => {
+    if (err) {
+      console.error('Erro ao executar consulta:', err.message);
+    } else {
+      console.log('Dados na tabela funcionarios:');
+      console.table(rows);
+    }
+  })
+}
+
+// testeDB();
+// consultaDb();
+consultaNovaTabela()

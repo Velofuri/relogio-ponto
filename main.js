@@ -19,7 +19,7 @@ function janelaCadatraFuncionario() {
 
 }
 
-function janelaGeraPonto() {
+function janelaGeraPonto(funcionario) {
   const win = new BrowserWindow({
     width: 600,
     height: 700,
@@ -31,6 +31,10 @@ function janelaGeraPonto() {
   });
 
   win.loadFile('index.html');
+
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.send("dados-funcionarios", funcionario);
+  })
 }
 
 app.whenReady().then(janelaCadatraFuncionario).then(createDatabase());
@@ -93,9 +97,30 @@ ipcMain.on('excluir-funcionario', (event, id) => {
   })
 })
 
+ipcMain.on("gerador-ponto", (event, funcionario) => {
+  janelaGeraPonto(funcionario)
+})
+
 ipcMain.on('form-submission', (event, dadosFormulario) => {
   const dadosGerados = geraDadosPorPeriodoData(dadosFormulario);
   // console.log(dadosGerados);
+
+  for (const dados of dadosGerados) {
+    const query = `INSERT INTO registros_ponto (
+        funcionario_id,
+        data,
+        hora_entrada,
+        hora_refeicao_inicio,
+        hora_refeicao_fim,
+        hora_saida
+      ) VALUES (?, ?, ?, ?, ?, ?)`
+    db.run(query, [dados.id, dados.data, dados.horaEntrada, dados.horaRefeicaoInicio, dados.horaRefeicaoFim, dados.horaSaida], (error) => {
+      if (error) {
+        console.error(error);
+      }
+    });    
+  }
+
 
   const caminhoArquivo = dialog.showSaveDialogSync({
     title: 'Salvar arquivo',
@@ -111,7 +136,7 @@ ipcMain.on('form-submission', (event, dadosFormulario) => {
 });
 
 function geraDadosPorPeriodoData(dadosFormulario) {
-  const { matricula, nome, dataInicial, dataFinal } = dadosFormulario;
+  const {id, matricula, nome, dataInicial, dataFinal } = dadosFormulario;
   const inicioData = new Date(dataInicial + 'T09:00:00');
   const finalData = new Date(dataFinal + 'T09:00:00');
   const registrosGerados = [];
@@ -121,6 +146,7 @@ function geraDadosPorPeriodoData(dadosFormulario) {
     if (dataCorrente.getDay() === 6) {
       const dataFormatada = dataCorrente.toISOString().split('T')[0];
       const dadosGerados = {
+        id,
         matricula,
         nome,
         data: dataFormatada,
@@ -131,6 +157,7 @@ function geraDadosPorPeriodoData(dadosFormulario) {
     if (dataCorrente.getDay() !== 0 && dataCorrente.getDay() !== 6) {
       const dataFormatada = dataCorrente.toISOString().split('T')[0];
       const dadosGerados = {
+        id,
         matricula,
         nome,
         data: dataFormatada,
@@ -194,8 +221,8 @@ function padZero(valor) {
 }
 
 function gerarCsvDados(dadosGerados) {
-  const { nome, matricula } = dadosGerados[0];
-  let dadosCsv = `Nome: ${nome},Matrícula: ${matricula} \nData,Hora Entrada,Hora Refeição Início,Hora Refeição Fim,Hora Saída\n`;
+  const {id, nome, matricula } = dadosGerados[0];
+  let dadosCsv = `ID: ${id}, Nome: ${nome}, Matrícula: ${matricula} \nData,Hora Entrada,Hora Refeição Início,Hora Refeição Fim,Hora Saída\n`;
 
   for (const dados of dadosGerados) {
     const { data, horaEntrada, horaRefeicaoInicio, horaRefeicaoFim, horaSaida } = dados;
@@ -212,6 +239,7 @@ function createDatabase() {
     } else {
       console.log('Conexao com o banco de dados estabelecida.');
       createTable(db);
+      createTableRegistrosPonto(db);
     }
   });
   return db;
@@ -226,9 +254,31 @@ function createTable(db) {
     )
   `;
 
-  db.run(query, (err) => {
+    db.run(query, (err) => {
     if (err) {
       console.error('Erro ao criar a tabela', err.message);
     }
   });
 }
+
+function createTableRegistrosPonto(db) {
+  const query = `
+    CREATE TABLE IF NOT EXISTS registros_ponto (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      funcionario_id INTEGER,
+      data TEXT,
+      hora_entrada TEXT,
+      hora_refeicao_inicio TEXT,
+      hora_refeicao_fim TEXT,
+      hora_saida TEXT,
+      FOREIGN KEY(funcionario_id) REFERENCES funcionarios(id) ON DELETE CASCADE
+    )
+  `;
+
+  db.run(query, (err) => {
+    if (err) {
+      console.error('Erro ao criar a tabela registros_ponto', err.message);
+    }
+  });
+}
+

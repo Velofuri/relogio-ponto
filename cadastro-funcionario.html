@@ -96,6 +96,7 @@ li {
                 ${employee.matricula} - ${employee.nome}
                 <button class="editButton" data-index="${index}">Editar</button>
                 <button class="deleteButton" data-index="${index}">Excluir</button>
+                <button class="gerarPontoButton" data-index="${index}">Gerar Ponto</button>
                 </li>
             `
             )
@@ -103,6 +104,7 @@ li {
 
         const editButtons = document.querySelectorAll('.editButton');
         const deleteButtons = document.querySelectorAll('.deleteButton');
+        const gerarPontoButton = document.querySelectorAll('.gerarPontoButton');
 
         editButtons.forEach((button) =>
             button.addEventListener('click', handleEditEmployee)
@@ -111,7 +113,22 @@ li {
         deleteButtons.forEach((button) =>
             button.addEventListener('click', handleDeleteEmployee)
         );
+
+        gerarPontoButton.forEach((button) =>
+            button.addEventListener('click', handleGeraPonto)
+        )
         }
+
+    function handleGeraPonto(event) {
+      const index = event.target.dataset.index;
+      const employee = employees[index];
+      const id = employee.id
+      const nome = employee.nome
+      const matricula = employee.matricula
+      console.log(id, nome, matricula)
+
+      ipcRenderer.send('gerador-ponto', {id, matricula, nome})
+    }
 
     function addEmployee(event) {
         event.preventDefault();

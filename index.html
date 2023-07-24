@@ -68,6 +68,9 @@
 <body>
   <form id="myForm">
     <h1>Gerador Folha de Ponto</h1>
+    <label for="id">Id:</label>
+    <input type="text" id="id" name="id" required>
+
     <label for="matricula">Matrícula:</label>
     <input type="text" id="matricula" name="matricula" required>
   
@@ -86,6 +89,12 @@
 
   <script>
     const { ipcRenderer } = require('electron');
+
+    ipcRenderer.on('dados-funcionarios', (event, funcionario) => {
+      document.getElementById('id').value = funcionario.id
+      document.getElementById('matricula').value = funcionario.matricula
+      document.getElementById('nome').value = funcionario.nome
+    })
 
     document.getElementById('myForm').addEventListener('submit', (event) => {
       event.preventDefault();
