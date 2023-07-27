@@ -117,7 +117,19 @@ li {
         gerarPontoButton.forEach((button) =>
             button.addEventListener('click', handleGeraPonto)
         )
+
+        consultarPontoButton.forEach((button) => {
+          button.addEventListener('click', handleConsultaPonto)
+        })
         }
+
+    function handleConsultaPonto(event) {
+      const index = event.target.dataset.index;
+      const employee = employees[index];
+      const id = employee.id
+
+      ipcRenderer.send('consulta-ponto', id)
+    }
 
     function handleGeraPonto(event) {
       const index = event.target.dataset.index;

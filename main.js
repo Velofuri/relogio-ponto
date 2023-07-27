@@ -1,7 +1,7 @@
-const { app, BrowserWindow, ipcMain, dialog, ipcRenderer } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const fs = require('fs');
-const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
+const { createDatabase } = require('./model');
+
 
 function janelaCadatraFuncionario() {
   const win = new BrowserWindow({
@@ -40,7 +40,6 @@ function janelaGeraPonto(funcionario) {
 app.whenReady().then(janelaCadatraFuncionario).then(createDatabase());
 
 function buscaFuncionarios() {
-  // const db = createDatabase();
   const query = `SELECT * FROM funcionarios`;
 
   return new Promise((resolve, reject) => {
@@ -49,7 +48,6 @@ function buscaFuncionarios() {
         console.error('erro na consulta', error.message);
         reject(error);
       } else {
-        // console.log(rows);
         resolve(rows);
       }
     });
@@ -66,7 +64,6 @@ ipcMain.handle('buscarFuncionarios', async (event, args) => {
 });
 
 ipcMain.on('cadastro-funcionario', (event, dadosFuncionario) => {
-  // console.log(dadosFuncionario);
   const query = `INSERT INTO funcionarios (matricula, nome) VALUES (?, ?)`;
   db.run(query, [dadosFuncionario.matricula, dadosFuncionario.nome], (error) => {
     if (error) {
@@ -103,37 +100,67 @@ ipcMain.on("gerador-ponto", (event, funcionario) => {
 
 ipcMain.on('form-submission', (event, dadosFormulario) => {
   const dadosGerados = geraDadosPorPeriodoData(dadosFormulario);
-  // console.log(dadosGerados);
 
   for (const dados of dadosGerados) {
-    const query = `INSERT INTO registros_ponto (
-        funcionario_id,
-        data,
-        hora_entrada,
-        hora_refeicao_inicio,
-        hora_refeicao_fim,
-        hora_saida
-      ) VALUES (?, ?, ?, ?, ?, ?)`
-    db.run(query, [dados.id, dados.data, dados.horaEntrada, dados.horaRefeicaoInicio, dados.horaRefeicaoFim, dados.horaSaida], (error) => {
-      if (error) {
-        console.error(error);
+    const consultaQuery = `SELECT COUNT(*) as count FROM registros_ponto WHERE funcionario_id = ? AND data = ?`
+    db.get(consultaQuery, [dados.id, dados.data], (err, row) => {
+      if (err) {
+        console.error('Erro ao executar consulta', err.message);
+        return
       }
-    });    
+
+      const count = row.count
+      console.log(`Curioso ${row}`)
+
+      if (count === 0) {
+        const query = `INSERT INTO registros_ponto (
+            funcionario_id,
+            data,
+            hora_entrada,
+            hora_refeicao_inicio,
+            hora_refeicao_fim,
+            hora_saida
+          ) VALUES (?, ?, ?, ?, ?, ?)`
+        db.run(query, [dados.id, dados.data, dados.horaEntrada, dados.horaRefeicaoInicio, dados.horaRefeicaoFim, dados.horaSaida], (error) => {
+          if (error) {
+            console.error(error);
+          }
+        }); 
+        console.log(`dia ${dados.data} foi salvo no banco de dados`)   
+
+      } else {
+        console.log(`Os dados desse funcionario nesta data ja estão salvos no banco de dados`)
+      }
+    })
   }
 
+  // const caminhoArquivo = dialog.showSaveDialogSync({
+  //   title: 'Salvar arquivo',
+  //   defaultPath: 'registros.csv',
+  //   filters: [{ name: 'Arquivos CSV', extensions: ['csv'] }],
+  // });
 
-  const caminhoArquivo = dialog.showSaveDialogSync({
-    title: 'Salvar arquivo',
-    defaultPath: 'registros.csv',
-    filters: [{ name: 'Arquivos CSV', extensions: ['csv'] }],
-  });
+  // if (caminhoArquivo) {
+  //   const csvDados = gerarCsvDados(dadosGerados);
 
-  if (caminhoArquivo) {
-    const csvDados = gerarCsvDados(dadosGerados);
-
-    fs.writeFileSync(caminhoArquivo, csvDados);
-  }
+  //   fs.writeFileSync(caminhoArquivo, csvDados);
+  // }
 });
+
+function consultarRegistrosPontoPorFuncionarioId(funcionarioId) {
+  const query = `SELECT * FROM registros_ponto WHERE funcionario_id = ?`;
+
+  return new Promise((resolve, reject) => {
+    db.all(query, [funcionarioId], (error, rows) => {
+      if (error) {
+        console.error('Erro ao consultar registros de ponto:', error.message);
+        reject(error);
+      } else {
+        resolve(rows);
+      }
+    });
+  });
+}
 
 function geraDadosPorPeriodoData(dadosFormulario) {
   const {id, matricula, nome, dataInicial, dataFinal } = dadosFormulario;
@@ -232,53 +259,5 @@ function gerarCsvDados(dadosGerados) {
   return dadosCsv;
 }
 
-function createDatabase() {
-  db = new sqlite3.Database('./database.db', (err) => {
-    if (err) {
-      console.error('Erro ao abrir o banco de dados', err.message);
-    } else {
-      console.log('Conexao com o banco de dados estabelecida.');
-      createTable(db);
-      createTableRegistrosPonto(db);
-    }
-  });
-  return db;
-}
 
-function createTable(db) {
-  const query = `
-    CREATE TABLE IF NOT EXISTS funcionarios (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      matricula TEXT,
-      nome TEXT
-    )
-  `;
-
-    db.run(query, (err) => {
-    if (err) {
-      console.error('Erro ao criar a tabela', err.message);
-    }
-  });
-}
-
-function createTableRegistrosPonto(db) {
-  const query = `
-    CREATE TABLE IF NOT EXISTS registros_ponto (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      funcionario_id INTEGER,
-      data TEXT,
-      hora_entrada TEXT,
-      hora_refeicao_inicio TEXT,
-      hora_refeicao_fim TEXT,
-      hora_saida TEXT,
-      FOREIGN KEY(funcionario_id) REFERENCES funcionarios(id) ON DELETE CASCADE
-    )
-  `;
-
-  db.run(query, (err) => {
-    if (err) {
-      console.error('Erro ao criar a tabela registros_ponto', err.message);
-    }
-  });
-}
 
